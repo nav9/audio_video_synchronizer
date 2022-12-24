@@ -64,7 +64,7 @@ class VideoFaceProcessor:
                 if self.displayMesh:
                     self.displayVideo(theImage, f'FPS: {int(self.fps)}')
                 timestamp = videoHandle.get(cv2.CAP_PROP_POS_MSEC) / Const.MILLISECONDS_IN_ONE_SECOND
-                #print(f"Frame {frameNumber}, timestamp {timestamp}")
+                print(f"Frame {frameNumber}, timestamp {timestamp}")
                 if processedImage.multi_face_landmarks:
                     for detectedFace in processedImage.multi_face_landmarks:
                         if self.hardCodedFaceID not in self.faces:#face not present in dict
