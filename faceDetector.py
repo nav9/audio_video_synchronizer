@@ -15,6 +15,7 @@ class Landmark:
         self.timestamp = timestamp
         self.points = {} #{pointCode1: [x, y, z], pointCode2: [x, y, z]}
         self.lipSeparation = 0 #normalized distance the upper lip is from the lower lip (normalized, meaning the top of the head is considered 0% and tip of chin is considered 100%. Lip distances are normalized to between these two points before distances are calculated)
+        self.speaking = True
 
     def setPoint(self, pointCode, x, y, z):
         self.points[pointCode] = [x, y, z]
@@ -40,10 +41,12 @@ class VideoFaceProcessor:
         self.fontScale = 0.5
         self.fontColor = (0, 255, 0)
         self.fontThickness = 2      
+        self.pauseDuration = None
 
     def run(self):
         videoHandle = cv2.VideoCapture(self.videoSource)
         self.fps = videoHandle.get(cv2.CAP_PROP_FPS)
+        self.pauseDuration = int((7/30) * self.fps) #because during an experiment it was seen that in a 30FPS video, if 7 consecutive frames were with mouth shut, it could be a pause
         print(f"Video has {self.fps}FPS. Processing...")
         frameNumber = 0
         with mediaPipeFaceMesh.FaceMesh(min_detection_confidence=self.minimumDetectionConfidence, min_tracking_confidence=self.minimumTrackingConfidence) as detectedMesh:
@@ -59,7 +62,7 @@ class VideoFaceProcessor:
                 theImage.flags.writeable = True                
                 theImage = cv2.cvtColor(theImage, cv2.COLOR_RGB2BGR)
                 if self.displayMesh:
-                    self.displayVideo(theImage)
+                    self.displayVideo(theImage, f'FPS: {int(self.fps)}')
                 timestamp = videoHandle.get(cv2.CAP_PROP_POS_MSEC) / Const.MILLISECONDS_IN_ONE_SECOND
                 print(f"Frame {frameNumber}, timestamp {timestamp}")
                 if processedImage.multi_face_landmarks:
@@ -80,8 +83,7 @@ class VideoFaceProcessor:
         print(f"Finished processing. {len(self.faces[self.hardCodedFaceID])} landmark objects added for face {self.hardCodedFaceID}")
         self.calculateLipMovement()
         
-    def displayVideo(self, image):
-        textToDisplay = f'FPS: {int(self.fps)}'
+    def displayVideo(self, image, textToDisplay):        
         cv2.putText(image, textToDisplay, self.fontDisplayPosition, cv2.FONT_HERSHEY_DUPLEX, self.fontScale, self.fontColor, self.fontThickness)
         cv2.imshow('Lip movement detection', image)
         cv2.waitKey(1)
@@ -100,37 +102,54 @@ class VideoFaceProcessor:
         #---calculate average lip separation distance for all frames
         for faceID, landmarkDeque in self.faces.items():
             #print(f"{len(landmarkDeque)} landmarks")
+            prevLipSeparation = 0
             for landmark in landmarkDeque:#landmark is a landmarkObject
                 faceHeight = abs(math.dist(landmark.points[self.topOfHead], landmark.points[self.tipOfChin]))
                 #--calculate distances between opposing points on upper and lower lips
                 averageDistance = self.calculateAverageLipOpenDistance(landmark.points)
                 #---normalize distances based on face height
                 normalizedLipSeparation = averageDistance * 100 / faceHeight 
-                landmark.storeLipSeparation(normalizedLipSeparation)    
-                #print(f"{landmark.timestamp}: {landmark.lipSeparation}")
-            self.determineSpeakingPhases(landmarkDeque)
+                landmark.storeLipSeparation(normalizedLipSeparation)                    
+                t = float("{:.2f}".format(landmark.timestamp)); d = float("{:.2f}".format(abs(landmark.lipSeparation - prevLipSeparation))); s = float("{:.2f}".format(landmark.lipSeparation));
+                print(f"Time{t} diff:{d} Sep:{s}")
+                prevLipSeparation = landmark.lipSeparation
+            self.determineSilencePhases(landmarkDeque)
     
-    def determineSpeakingPhases(self, landmarkDeque):
+    def determineSilencePhases(self, landmarkDeque):
         #---use a sliding window to determine if the person is speaking (assuming 4 syllables per second https://en.wikipedia.org/wiki/Speech_tempo)
-        framesSpeaking = [] #frames during which speaking is detected   
-        changeDetectedAt = deque()
-        mouthState = False #False is mouth closed. True is mouth open
-        minimumMouthOpenDistanceForTalking = 2
-        for landmark in landmarkDeque:
-            if landmark.lipSeparation >= minimumMouthOpenDistanceForTalking: #mouth open
-                if mouthState == False:#mouth was closed earlier
-                    mouthState = True
-                    changeDetectedAt.append(landmark.timestamp)
-            else:#mouth closed
-                if mouthState == True:#mouth was open earlier
-                    mouthState = False
-                    changeDetectedAt.append(landmark.timestamp)
-
-                
-
+        pastFew = deque(maxlen=self.pauseDuration)
+        mouthOpeningThreshold = 1 #distance of lip separation        
+        for i in range(0, len(landmarkDeque)):
+            pastFew.append(landmarkDeque[i].lipSeparation)
+            print(pastFew)
+            if all(i < mouthOpeningThreshold for i in pastFew):#mouth has been closed for a few frames
+                print(f"i={i} All less than {mouthOpeningThreshold}")
+                for j in range(i, i-len(pastFew), -1):#go in reverse and mark those landmark objects as mouth closed 
+                    landmarkDeque[j].speaking = False
+        self.showDetectedSilencePhases(landmarkDeque)
 
     def calculateAverageLipOpenDistance(self, points):
         totalDistance = 0
         for i in range(len(self.upperLipPoints)):
             totalDistance += math.dist(points[self.upperLipPoints[i]], points[self.lowerLipPoints[i]])
         return totalDistance / len(self.upperLipPoints)
+
+    def showDetectedSilencePhases(self, landmarkDeque):
+        for landmark in landmarkDeque:
+            print(f"Time:{landmark.timestamp} speaking:{landmark.speaking}")        
+        videoHandle = cv2.VideoCapture(self.videoSource)
+        frameNumber = 0
+        while videoHandle.isOpened():#as long as there are frames
+            frameExists, theImage = videoHandle.read()
+            if not frameExists:#reached end of video
+                break #for a stream, you'd use `continue` here
+            #---preprocess
+            theImage.flags.writeable = False #a performance improvement (optional) 
+            textToDisplay = "?"
+            if landmarkDeque[frameNumber].speaking:
+                textToDisplay = "Speaking"
+            if not landmarkDeque[frameNumber].speaking:
+                textToDisplay = "Silence"            
+            self.displayVideo(theImage, textToDisplay)
+            time.sleep(1/self.fps)
+            frameNumber = frameNumber + 1
