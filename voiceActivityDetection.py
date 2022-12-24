@@ -101,10 +101,10 @@ class AudioProcessor:
         voiced_frames = []
         for frame in frames:
             is_speech = vad.is_speech(frame.bytes, sample_rate)
-            print(f"{is_speech} Frame start time (seconds): {frame.timestamp}, {len(self.speechDetected)}")        
+            #print(f"{is_speech} Frame start time (seconds): {frame.timestamp}, {len(self.speechDetected)}")        
             speechObject = Speech(frame.timestamp, is_speech)
             self.speechDetected.append(speechObject)
-            sys.stdout.write('1' if is_speech else '0')
+            #sys.stdout.write('1' if is_speech else '0')
             if not triggered:
                 ring_buffer.append((frame, is_speech))
                 num_voiced = len([f for f, speech in ring_buffer if speech])
@@ -113,7 +113,7 @@ class AudioProcessor:
                 # TRIGGERED state.
                 if num_voiced > 0.9 * ring_buffer.maxlen:
                     triggered = True
-                    sys.stdout.write('+(%s)' % (ring_buffer[0][0].timestamp,))
+                    #sys.stdout.write('+(%s)' % (ring_buffer[0][0].timestamp,))
                     # We want to yield all the audio we see from now until
                     # we are NOTTRIGGERED, but we have to start with the
                     # audio that's already in the ring buffer.
@@ -130,14 +130,14 @@ class AudioProcessor:
                 # unvoiced, then enter NOTTRIGGERED and yield whatever
                 # audio we've collected.
                 if num_unvoiced > 0.9 * ring_buffer.maxlen:
-                    sys.stdout.write('-(%s)' % (frame.timestamp + frame.duration))
+                    #sys.stdout.write('-(%s)' % (frame.timestamp + frame.duration))
                     triggered = False
                     yield b''.join([f.bytes for f in voiced_frames])
                     ring_buffer.clear()
                     voiced_frames = []
-        if triggered:
-            sys.stdout.write('-(%s)' % (frame.timestamp + frame.duration))
-        sys.stdout.write('\n')
+        #if triggered:
+        #    sys.stdout.write('-(%s)' % (frame.timestamp + frame.duration))
+        #sys.stdout.write('\n')
         # If we have any leftover voiced audio when we run out of input, yield it.
         if voiced_frames:
             yield b''.join([f.bytes for f in voiced_frames])
@@ -153,13 +153,11 @@ class VoiceActivityDetector:
         vad = webrtcvad.Vad(levelTofilterNonSpeech)
         frames = self.audioProcessor.frame_generator(30, audio, sample_rate)
         frames = list(frames)    
-        print("frames", frames)    
         self.segments = self.audioProcessor.vad_collector(sample_rate, 30, 300, vad, frames)  
-        print(f"Segments: {self.segments}")
         #---write so that the generator function works and produces the speech detection
         for i, segment in enumerate(self.segments):
             path = 'chunk-%002d.wav' % (i,)
-            print(' Writing %s' % (path,))
+            #print(' Writing %s' % (path,))
             self.audioProcessor.write_wave(path, segment, sample_rate)
 
     def getSpeechDetectedSections(self):

@@ -64,7 +64,7 @@ class VideoFaceProcessor:
                 if self.displayMesh:
                     self.displayVideo(theImage, f'FPS: {int(self.fps)}')
                 timestamp = videoHandle.get(cv2.CAP_PROP_POS_MSEC) / Const.MILLISECONDS_IN_ONE_SECOND
-                print(f"Frame {frameNumber}, timestamp {timestamp}")
+                #print(f"Frame {frameNumber}, timestamp {timestamp}")
                 if processedImage.multi_face_landmarks:
                     for detectedFace in processedImage.multi_face_landmarks:
                         if self.hardCodedFaceID not in self.faces:#face not present in dict
@@ -80,7 +80,7 @@ class VideoFaceProcessor:
                         self.faces[self.hardCodedFaceID].append(landmarkObject)
                 frameNumber = frameNumber + 1                
             videoHandle.release            
-        print(f"Finished processing. {len(self.faces[self.hardCodedFaceID])} landmark objects added for face {self.hardCodedFaceID}")
+        #print(f"Finished processing. {len(self.faces[self.hardCodedFaceID])} landmark objects added for face {self.hardCodedFaceID}")
         self.calculateLipMovement()
         
     def displayVideo(self, image, textToDisplay):        
