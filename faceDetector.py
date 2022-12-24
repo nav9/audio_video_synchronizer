@@ -115,15 +115,16 @@ class VideoFaceProcessor:
                 prevLipSeparation = landmark.lipSeparation
             self.determineSilencePhases(landmarkDeque)
     
+    def getDetectedSilences(self):
+        return self.faces[self.hardCodedFaceID] #returns the deque of landmark objects
+        
     def determineSilencePhases(self, landmarkDeque):
         #---use a sliding window to determine if the person is speaking (assuming 4 syllables per second https://en.wikipedia.org/wiki/Speech_tempo)
         pastFew = deque(maxlen=self.pauseDuration)
         mouthOpeningThreshold = 1 #distance of lip separation        
         for i in range(0, len(landmarkDeque)):
             pastFew.append(landmarkDeque[i].lipSeparation)
-            print(pastFew)
             if all(i < mouthOpeningThreshold for i in pastFew):#mouth has been closed for a few frames
-                print(f"i={i} All less than {mouthOpeningThreshold}")
                 for j in range(i, i-len(pastFew), -1):#go in reverse and mark those landmark objects as mouth closed 
                     landmarkDeque[j].speaking = False
         #self.showDetectedSilencePhases(landmarkDeque)
