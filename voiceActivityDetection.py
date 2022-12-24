@@ -7,7 +7,6 @@ import webrtcvad
 
 def read_wave(path):
     """Reads a .wav file.
-
     Takes the path, and returns (PCM audio data, sample rate).
     """
     with contextlib.closing(wave.open(path, 'rb')) as wf:
@@ -23,7 +22,6 @@ def read_wave(path):
 
 def write_wave(path, audio, sample_rate):
     """Writes a .wav file.
-
     Takes path, PCM audio data, and sample rate.
     """
     with contextlib.closing(wave.open(path, 'wb')) as wf:
