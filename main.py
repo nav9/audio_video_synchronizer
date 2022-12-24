@@ -5,3 +5,4 @@ if __name__ == '__main__':
     faceProcessor = VideoFaceProcessor(videoSource)
     faceProcessor.run()
     faceProcessor.displayPoints()
+    #faceProcessor.calculateLipMovement()
