@@ -126,7 +126,7 @@ class VideoFaceProcessor:
                 print(f"i={i} All less than {mouthOpeningThreshold}")
                 for j in range(i, i-len(pastFew), -1):#go in reverse and mark those landmark objects as mouth closed 
                     landmarkDeque[j].speaking = False
-        self.showDetectedSilencePhases(landmarkDeque)
+        #self.showDetectedSilencePhases(landmarkDeque)
 
     def calculateAverageLipOpenDistance(self, points):
         totalDistance = 0
