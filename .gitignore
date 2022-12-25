@@ -1,5 +1,8 @@
+#user defined
 *.mp4
 *.wav
+!thePause2_withAudioOffset.mp4
+
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

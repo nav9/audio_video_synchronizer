@@ -47,7 +47,7 @@ class VideoFaceProcessor:
         videoHandle = cv2.VideoCapture(self.videoSource)
         self.fps = videoHandle.get(cv2.CAP_PROP_FPS)
         self.pauseDuration = int((7/30) * self.fps) #because during an experiment it was seen that in a 30FPS video, if 7 consecutive frames were with mouth shut, it could be a pause
-        print(f"Video has {self.fps}FPS. Processing...")
+        print(f"Video has {self.fps}FPS and pause detection duration = {self.pauseDuration} frames Processing...")
         frameNumber = 0
         with mediaPipeFaceMesh.FaceMesh(min_detection_confidence=self.minimumDetectionConfidence, min_tracking_confidence=self.minimumTrackingConfidence) as detectedMesh:
             while videoHandle.isOpened():#as long as there are frames

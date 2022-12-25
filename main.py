@@ -1,5 +1,4 @@
 import os
-import psutil
 import shlex #useful for recognizing quotes inside a command to be split
 import subprocess
 from collections import deque
@@ -36,31 +35,48 @@ def plotSpeechDetected(audioMarkers, videoMarkers):
     axs[1].plot(videoTimestamps, videoSpeaking); axs[1].set(xlabel='timestamp', ylabel='video')
     plt.show() 
 
+def searchNearbyAudioTimestamps(audioCrucialPoints, videoTimestamp):
+    maxOffset = 1.5 #audio video may be out of sync by a max of these many seconds
+    nearestAudioIndex = None #audio index of speech that's closest to the video timestamp
+    closestValue = 999
+    for i in range(0, len(audioCrucialPoints)):
+        val = abs(videoTimestamp - audioCrucialPoints[i])
+        if val <= maxOffset:#is within range of the video timestamp offset allowed
+            if val < closestValue:#find the closest offset detected
+                closestValue = val
+                nearestAudioIndex = i
+    return nearestAudioIndex
+
+
 if __name__ == '__main__':
     waveExtension = ".wav"
     mp4Extension = ".mp4"
-    #videoSource = "thePause.mp4"
-    videoSource = "thePause_withAudioOffset.mp4"
-    nonSpeechFilterLevel = 0
+    #videoSource = "thePause2.mp4"
+    videoSource = "thePause2_withAudioOffset.mp4"
+    nonSpeechFilterLevel = 1
     filenameWithoutExtension = os.path.splitext(videoSource)[0] #remove extension
+    
     #---Create an audio file from the video file
-    command = f"ffmpeg -y -i {videoSource} -vn -ac 1 {filenameWithoutExtension}{waveExtension}"    
+    command = f"ffmpeg -hide_banner -loglevel error -y -i {videoSource} -vn -ac 1 {filenameWithoutExtension}{waveExtension}"    
     runCommand(command)
+    
     #---Analyze audio to detect speech
     print("Processing audio")
     vad = VoiceActivityDetector()
     vad.run(f"{filenameWithoutExtension}{waveExtension}", nonSpeechFilterLevel)
     audioMarkers = vad.getSpeechDetectedSections()
+    
     #---Analyze lip movements to detect silences
     print("Processing video")
     faceProcessor = VideoFaceProcessor(videoSource)
     faceProcessor.run()
     videoMarkers = faceProcessor.getDetectedSilences()
     ##faceProcessor.displayPoints()
+    
     #---Check for Audio Video sync issues
     print(f"Num. audio points {len(audioMarkers)}") 
     print(f"Num. video points {len(videoMarkers)}")
-    numFramesToCheck = 10
+    numFramesToCheck = 15
     detectionWindow = deque(maxlen=numFramesToCheck)
     videoCrucialPoints = []; audioCrucialPoints = []   
     plotSpeechDetected(audioMarkers, videoMarkers)
@@ -81,7 +97,10 @@ if __name__ == '__main__':
         detectionWindow.append(frame.speaking)
     allDiffs = []
     for i in range(0, len(videoCrucialPoints)):
-        diff = videoCrucialPoints[i] - audioCrucialPoints[i]
+        offsetIndex = searchNearbyAudioTimestamps(audioCrucialPoints, videoCrucialPoints[i])
+        if offsetIndex == None:
+            print(f"No nearby audio found for point {i} of video")
+        diff = videoCrucialPoints[i] - audioCrucialPoints[offsetIndex]
         if diff == 0:
             print(f"point {i}: Audio and video are in sync")
         if diff > 0:
@@ -89,8 +108,12 @@ if __name__ == '__main__':
         if diff < 0:
             print(f"point {i}: Audio is ahead of video by {diff}s")            
         allDiffs.append(diff)
+    
     #---calculate an approximate offset to perform
-    offset = allDiffs[0] #first async
+    offset = allDiffs[0] #most reliable async
+    print(f"Offset is {offset}s. Adjusting audio in video by this much.")
+    
     #---Do the sync
-    command = f"ffmpeg -y -itsoffset {offset} -i {videoSource} -c:v copy -c:a copy sync{mp4Extension}"    
-    runCommand(command)                 
+    command = f"ffmpeg -hide_banner -loglevel error -y -i {videoSource} -itsoffset {offset} -i {videoSource} -map 0:v -map 1:a -c copy sync{mp4Extension}"  #https://superuser.com/questions/982342/in-ffmpeg-how-to-delay-only-the-audio-of-a-mp4-video-without-converting-the-au
+    runCommand(command)     
+    print(f"\n\nProgram complete. Synched file is: sync{mp4Extension}")            

@@ -1,7 +1,6 @@
-Under construction.
-  
 # What this project does  
-Synchronises audio and video based on lip movement of speakers
+Synchronises audio and video based on lip movement of speakers. This is a simplistic implementation that is far from being generic.
+It detects phases where speech has started after phases of silence, and at such points in the video, it looks for matching points in the audio timeline nearby. The first such audio-video offset found, is used to correct the audio-video async.
   
 # Install requirements  
 TODO
