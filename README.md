@@ -3,8 +3,8 @@ Synchronises audio and video based on lip movement of speakers. This is a simpli
 It detects phases where speech has started after phases of silence, and at such points in the video, it looks for matching points in the audio timeline nearby. The first such audio-video offset found, is used to correct the audio-video async.  
 MediaPipe is used for detecting the points on the face and lips.
   
-# Install requirements  
-Simply use `python3 main.py`.  
+# Running 
+Install the necessary Python packages and simply use `python3 main.py`.  
   
 # Install requirements  
 TODO.
